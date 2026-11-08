@@ -8,6 +8,8 @@ env/
 venv/
 .venv/
 ENV/
+.agents
+PROJECT.md
 
 # Data & Models (ignore large data files, keep folders via .gitkeep & DVC pointers)
 backend/data/raw/*
