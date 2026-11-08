@@ -1,0 +1,33 @@
+stages:
+  tune:
+    cmd: python backend/scripts/run_tuning.py
+    deps:
+      - backend/data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv
+      - backend/src/tune.py
+      - backend/src/pipeline.py
+    outs:
+      - backend/models/best_hyperparams.json:
+          cache: true
+
+  train:
+    cmd: python backend/scripts/run_training.py
+    deps:
+      - backend/data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv
+      - backend/models/best_hyperparams.json
+      - backend/src/train.py
+      - backend/src/pipeline.py
+    outs:
+      - backend/models/champion_model.joblib:
+          cache: true
+      - backend/data/processed/reference_data.csv:
+          cache: true
+
+  drift:
+    cmd: python backend/scripts/run_drift_report.py
+    deps:
+      - backend/data/processed/reference_data.csv
+      - backend/src/monitoring.py
+      - backend/scripts/run_drift_report.py
+    outs:
+      - backend/reports/drift_report.html:
+          cache: true

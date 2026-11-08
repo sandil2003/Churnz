@@ -1,0 +1,70 @@
+schema: '2.0'
+stages:
+  tune:
+    cmd: python backend/scripts/run_tuning.py
+    deps:
+    - path: backend/data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv
+      hash: md5
+      md5: 3b0bfab28a8101b4e4fdd08025a5c235
+      size: 970457
+    - path: backend/src/pipeline.py
+      hash: md5
+      md5: d07347f0a0e6f167bbc2fec6317c19ab
+      size: 8913
+    - path: backend/src/tune.py
+      hash: md5
+      md5: cf10de47733a932da82814fc8df57514
+      size: 4993
+    outs:
+    - path: backend/models/best_hyperparams.json
+      hash: md5
+      md5: 19bb70977d031a395b55dc66cc38fce4
+      size: 293
+  train:
+    cmd: python backend/scripts/run_training.py
+    deps:
+    - path: backend/data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv
+      hash: md5
+      md5: 3b0bfab28a8101b4e4fdd08025a5c235
+      size: 970457
+    - path: backend/models/best_hyperparams.json
+      hash: md5
+      md5: 19bb70977d031a395b55dc66cc38fce4
+      size: 293
+    - path: backend/src/pipeline.py
+      hash: md5
+      md5: d07347f0a0e6f167bbc2fec6317c19ab
+      size: 8913
+    - path: backend/src/train.py
+      hash: md5
+      md5: c8b616901431a15b0c8228f93d0ab9b2
+      size: 11253
+    outs:
+    - path: backend/data/processed/reference_data.csv
+      hash: md5
+      md5: bcbdecb20981d69219d411f693a1dbdf
+      size: 705238
+    - path: backend/models/champion_model.joblib
+      hash: md5
+      md5: 7bf83b91168d2c5689944eb5f4b333a4
+      size: 35359
+  drift:
+    cmd: python backend/scripts/run_drift_report.py
+    deps:
+    - path: backend/data/processed/reference_data.csv
+      hash: md5
+      md5: bcbdecb20981d69219d411f693a1dbdf
+      size: 705238
+    - path: backend/scripts/run_drift_report.py
+      hash: md5
+      md5: 2aa6e15021ad269952bd8bc0446b8362
+      size: 1958
+    - path: backend/src/monitoring.py
+      hash: md5
+      md5: 3d6d7ce49a1a234997a6adeec50731c1
+      size: 9522
+    outs:
+    - path: backend/reports/drift_report.html
+      hash: md5
+      md5: c6d21dc7aed5304960cf5019dd6985a4
+      size: 6133383
