@@ -4,11 +4,12 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from src.config import settings
-from src.database import init_db_connection, CustomerTable, SessionLocal
+import src.database as db_mod
+from src.database import CustomerTable
 
 def ingest_csv_to_db(csv_path: str = settings.DATA_RAW_PATH):
     print("--> Connecting to PostgreSQL database...")
-    if not init_db_connection() or SessionLocal is None:
+    if not db_mod.init_db_connection() or db_mod.SessionLocal is None:
         print("[ERROR] Cannot connect to PostgreSQL. Run 'docker compose up -d postgres' first.")
         return
 
@@ -18,7 +19,7 @@ def ingest_csv_to_db(csv_path: str = settings.DATA_RAW_PATH):
     # Clean TotalCharges empty spaces
     df["TotalCharges"] = pd.to_numeric(df["TotalCharges"].astype(str).str.strip(), errors="coerce").fillna(0.0)
 
-    db = SessionLocal()
+    db = db_mod.SessionLocal()
     try:
         existing_count = db.query(CustomerTable).count()
         if existing_count > 0:
