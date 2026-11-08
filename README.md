@@ -1,4 +1,4 @@
-# 🚀 Telco Customer Churn — Production MLOps & Data Science Platform
+# Telco Customer Churn
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
