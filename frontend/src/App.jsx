@@ -65,6 +65,8 @@ export default function App() {
     fetchHealth();
     fetchStats();
     fetchHistory();
+    // Auto-score the initial profile on mount so the UI is immediately populated for screenshots
+    executePrediction(PRESETS.highRisk, false);
   }, []);
 
   const fetchHealth = async () => {
@@ -94,6 +96,30 @@ export default function App() {
     } catch {}
   };
 
+  const executePrediction = async (payload, showAlert = true) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/predict`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPrediction(data);
+        fetchHistory();
+      } else if (showAlert) {
+        alert("Prediction failed. Ensure model is trained.");
+      }
+    } catch {
+      if (showAlert) {
+        alert("Cannot connect to backend.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value, type } = e.target;
     setForm((prev) => ({
@@ -104,34 +130,17 @@ export default function App() {
 
   const handlePredict = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/predict`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      if (res.ok) {
-        setPrediction(await res.json());
-        fetchHistory();
-      } else {
-        alert("Prediction failed. Ensure model is trained.");
-      }
-    } catch {
-      alert("Cannot connect to backend.");
-    } finally {
-      setLoading(false);
-    }
+    await executePrediction(form, true);
   };
 
   return (
     <div className="app-layout">
-      {/* Minimal Navbar */}
+      {/* Minimal Header */}
       <header className="top-nav">
         <div className="top-nav-inner">
-          <div className="brand-title">
-            <span className="brand-dot"></span>
-            Churnz
+          <div className="brand-group">
+            <div className="brand-title">Churnz</div>
+            <span className="brand-tag">MLOps Platform</span>
           </div>
           <div className="nav-links">
             <span className={`badge ${apiOnline ? "online" : ""}`}>
@@ -152,7 +161,7 @@ export default function App() {
 
       {/* Main Container */}
       <main className="main-container">
-        {/* Minimal Tabs */}
+        {/* Minimal Segmented Tabs */}
         <div className="tabs-bar">
           <button
             className={`tab-item ${activeTab === "predict" ? "active" : ""}`}
@@ -189,11 +198,12 @@ export default function App() {
         {/* TAB: PREDICT */}
         {activeTab === "predict" && (
           <div className="grid-layout">
+            {/* Left Card: Customer Profile Input */}
             <div className="card">
               <div className="card-header">
                 <h2 className="card-title">Customer Profile</h2>
                 <div className="preset-buttons">
-                  <button
+                  {/*<button
                     type="button"
                     className="preset-btn"
                     onClick={() => {
@@ -202,8 +212,8 @@ export default function App() {
                     }}
                   >
                     High Risk Preset
-                  </button>
-                  <button
+                  </button>*/}
+                  {/*<button
                     type="button"
                     className="preset-btn"
                     onClick={() => {
@@ -212,7 +222,7 @@ export default function App() {
                     }}
                   >
                     Low Risk Preset
-                  </button>
+                  </button>*/}
                 </div>
               </div>
 
@@ -226,6 +236,7 @@ export default function App() {
                       onChange={handleInputChange}
                     />
                   </div>
+
                   <div className="form-group">
                     <label>Contract</label>
                     <select
@@ -331,49 +342,79 @@ export default function App() {
                 </div>
 
                 <button type="submit" disabled={loading} className="btn-primary">
-                  {loading ? "Calculating..." : "Predict Churn"}
+                  {loading ? "Scoring Profile..." : "Predict Churn Risk"}
                 </button>
               </form>
             </div>
 
-            {/* Result Card */}
-            <div className="card">
+            {/* Right Card: Prediction Result & TreeSHAP Drivers */}
+            <div className="card result-card">
               <div className="card-header">
                 <h2 className="card-title">Prediction Result</h2>
+                {prediction && (
+                  <span className="model-chip">
+                    {prediction.model_version || "Champion LightGBM"}
+                  </span>
+                )}
               </div>
 
               {!prediction ? (
                 <div className="result-placeholder">
-                  Fill the form and click "Predict Churn" to see score.
+                  <div className="placeholder-text">Click "Predict Churn Risk" to evaluate profile</div>
                 </div>
               ) : (
-                <div>
+                <div className="result-content">
+                  {/* Score KPI Banner */}
                   <div className={`score-banner ${prediction.risk_level.toLowerCase()}`}>
-                    <div className="score-tier">{prediction.risk_level} Risk</div>
-                    <div className="score-status">
-                      {prediction.churn_prediction === 1 ? "Likely Churn" : "Likely Retained"}
+                    <div>
+                      <div className="score-label">Churn Probability</div>
+                      <div className="score-percentage">
+                        {(prediction.churn_probability * 100).toFixed(1)}%
+                      </div>
+                    </div>
+                    <div className="score-badge-wrap">
+                      <span className={`risk-pill ${prediction.risk_level.toLowerCase()}`}>
+                        {prediction.risk_level} Risk
+                      </span>
+                      <div className="prediction-outcome">
+                        {prediction.churn_prediction === 1 ? "Likely Churn" : "Likely Retained"}
+                      </div>
                     </div>
                   </div>
 
+                  {/* Probability Meter with Threshold Ticks */}
                   <div className="progress-section">
-                    <div className="progress-label">
-                      <span>Probability</span>
-                      <strong>{(prediction.churn_probability * 100).toFixed(1)}%</strong>
-                    </div>
                     <div className="progress-bar">
                       <div
                         className={`progress-fill ${prediction.risk_level.toLowerCase()}`}
-                        style={{ width: `${prediction.churn_probability * 100}%` }}
+                        style={{ width: `${Math.min(100, Math.max(0, prediction.churn_probability * 100))}%` }}
                       ></div>
+                    </div>
+                    <div className="progress-ticks">
+                      <span>0% Safe</span>
+                      <span>50% Threshold</span>
+                      <span>100% Critical</span>
                     </div>
                   </div>
 
-                  <div className="factors-list">
-                    {prediction.explanation.map((item, idx) => (
-                      <div key={idx} className="factor-item">
-                        • {item}
-                      </div>
-                    ))}
+                  {/* Top TreeSHAP Impact Factors */}
+                  <div className="factors-section">
+                    <div className="factors-heading">Key Risk Drivers</div>
+                    <div className="factors-list">
+                      {(prediction.risk_factors && prediction.risk_factors.length > 0
+                        ? prediction.risk_factors.slice(0, 4)
+                        : (prediction.explanation || []).slice(0, 4)
+                      ).map((item, idx) => {
+                        const isRisk = typeof item === "object" ? item.direction === "increases_risk" : true;
+                        const text = typeof item === "object" ? item.display_text : item;
+                        return (
+                          <div key={idx} className={`factor-item ${isRisk ? "risk-up" : "risk-down"}`}>
+                            <span className="factor-indicator">{isRisk ? "▲" : "▼"}</span>
+                            <span className="factor-text">{text}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
@@ -406,7 +447,7 @@ export default function App() {
                 </div>
 
                 <div className="card">
-                  <h3 className="card-title" style={{ marginBottom: "14px" }}>
+                  <h3 className="card-title" style={{ marginBottom: "16px" }}>
                     Top Features
                   </h3>
                   {stats.top_features.map((f, idx) => (
@@ -433,21 +474,21 @@ export default function App() {
 
         {/* TAB: DRIFT */}
         {activeTab === "drift" && (
-          <div className="card" style={{ textAlign: "center", padding: "40px 20px" }}>
-            <h3 className="card-title" style={{ marginBottom: "8px" }}>
-              Evidently AI Drift Report
+          <div className="card" style={{ textAlign: "center", padding: "48px 24px" }}>
+            <h3 className="card-title" style={{ marginBottom: "8px", fontSize: "16px" }}>
+              Evidently AI Drift Monitoring
             </h3>
-            <p style={{ color: "var(--text-secondary)", marginBottom: "20px", fontSize: "13px" }}>
-              Compares live prediction logs against training baseline to detect data drift.
+            <p style={{ color: "var(--text-secondary)", marginBottom: "24px", fontSize: "13px" }}>
+              Statistical distribution tests comparing production traffic against training baseline.
             </p>
             <a
               href={`${API_BASE}/reports/drift`}
               target="_blank"
               rel="noreferrer"
-              className="link-btn"
-              style={{ display: "inline-block", background: "var(--brand)", color: "#fff", padding: "8px 16px" }}
+              className="btn-primary"
+              style={{ display: "inline-block", width: "auto", padding: "10px 24px", textDecoration: "none" }}
             >
-              Open HTML Report ↗
+              Open Interactive Report ↗
             </a>
           </div>
         )}
